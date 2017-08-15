@@ -1,0 +1,39 @@
+kind: DaemonSet
+apiVersion: extensions/v1beta1
+metadata:
+  name: add-iptables-rule
+  labels:
+    app: add-iptables-rule
+spec:
+  template:
+    metadata:
+      labels:
+        app: add-iptables-rule
+    spec:
+      hostPID: true
+      containers:
+        - name: startup-script
+          image: gcr.io/google-containers/startup-script:v1
+          imagePullPolicy: Always
+          securityContext:
+            privileged: true
+          env:
+          - name: STARTUP_SCRIPT
+            value: |
+              #! /bin/bash
+
+              set -o errexit
+              set -o pipefail
+              set -o nounset
+
+              echo Starting
+              iptables-save | grep -q "Added by Chris" || { 
+                echo Adding iptables rule
+                iptables -t nat -A POSTROUTING \
+                  -d 10.193.0.0/16 \
+                  -m comment --comment "Added by Chris: SNAT for outbound traffic to backend VPC" \
+                  -m addrtype ! --dst-type LOCAL -j MASQUERADE
+              }
+              echo done
+
+
