@@ -143,9 +143,15 @@ chris@gke-backend-cluster-default-pool-25a13d18-fkw6 ~ $ curl 10.193.0.3:32191
 <h1>Hello Kubernetes!</h1>
 ```
 
+#### (optional) Delete the external load balancer
+
+The ingress created an external load balancer, but you probably don't want your backend service exposed to the internet.
+
+You can delete the external load balancer and any associated firewall rules.
+
 ## Get the frontend to talk to the backend
 
-For the frontend, I won't bother creating a deployment. I'll just run `curl` on a k8s to simulate the frontend service.
+For the frontend, I won't bother creating a deployment. I'll just run `curl` on a k8s container to simulate the frontend service making requests to the backend.
 
 First let's switch to the cluster running in the frontend VPC:
 
@@ -214,16 +220,13 @@ We need to add another masquerade rule for the other VPC's CIDR block.
 Here's the line to add:
 
 ```
--A POSTROUTING -d 10.193.0.0/16 -m comment --comment "chris: SNAT for outbound traffic to backend VPC" -m addrtype ! --dst-type LOCAL -j MASQUERADE
+-A POSTROUTING -d 10.193.0.0/16 -m comment --comment "Added by Chris: SNAT for outbound traffic to backend VPC" -m addrtype ! --dst-type LOCAL -j MASQUERADE
 ```
 
 and here's how to add it:
 
 ```
-ris@gke-frontend-cluster-default-pool-d65237bb-1c6s ~ $ sudo iptables-save > /tmp/iptables.txt
-chris@gke-frontend-cluster-default-pool-d65237bb-1c6s ~ $ vim /tmp/iptables.txt
-<add the new rule just below the existing masquerade rule>
-chris@gke-frontend-cluster-default-pool-d65237bb-1c6s ~ $ sudo iptables-restore < /tmp/iptables.txt
+chris@gke-frontend-cluster-default-pool-d65237bb-1c6s ~ $ sudo iptables -t nat -A POSTROUTING -d 10.193.0.0/16 -m comment --comment "Added by Chris: SNAT for outbound traffic to backend VPC" -m addrtype ! --dst-type LOCAL -j MASQUERADE
 ```
 
 Now if you try the curl command in the container again, it works!
